@@ -20,15 +20,25 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   void _checkAuthState() async {
     await Future.delayed(const Duration(seconds: 2));
     
-    final authState = ref.read(authStateNotifierProvider);
-    
-    authState.whenData((user) {
-      if (user != null && mounted) {
-        context.goNamed('home');
-      } else if (mounted) {
+    if (!mounted) return;
+
+    try {
+      final authState = ref.read(authStateNotifierProvider);
+      final user = authState.whenData((u) => u).value;
+      
+      if (mounted) {
+        if (user != null) {
+          context.goNamed('home');
+        } else {
+          context.goNamed('phoneAuth');
+        }
+      }
+    } catch (e) {
+      // If error checking auth, go to phone auth
+      if (mounted) {
         context.goNamed('phoneAuth');
       }
-    });
+    }
   }
 
   @override

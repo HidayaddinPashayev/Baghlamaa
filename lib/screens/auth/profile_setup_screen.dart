@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:io';
+import '../../providers/auth_provider.dart';
 import '../../providers/firestore_user_provider.dart';
 import '../../models/user_model.dart';
 
@@ -24,6 +26,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   final _emailController = TextEditingController();
   final _bioController = TextEditingController();
   File? _profileImage;
+  File? _idVerificationImage;
   bool _isLoading = false;
 
   @override
@@ -41,6 +44,22 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
 
       if (image != null) {
         setState(() => _profileImage = File(image.path));
+      }
+    } catch (e) {
+      _showSnackBar('Şəkil seçməkdə xəta baş verdi');
+    }
+  }
+
+  Future<void> _pickIdImage() async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        preferredCameraDevice: CameraDevice.rear,
+      );
+
+      if (image != null) {
+        setState(() => _idVerificationImage = File(image.path));
       }
     } catch (e) {
       _showSnackBar('Şəkil seçməkdə xəta baş verdi');
@@ -67,40 +86,69 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
       return;
     }
 
+    // Validate ID verification for carriers
+    if (widget.accountType != 'sender' && _idVerificationImage == null) {
+      _showSnackBar('Zəhmət olmasa şəxsiyyət vəsiqənizin şəklini yükləyin');
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
       String? profileImageUrl;
+      String? idVerificationUrl;
+      final authState = ref.read(authStateNotifierProvider);
+      final currentUser = authState.value;
+      final userId = currentUser?.uid ?? 'unknown';
 
       // Upload profile image if selected
       if (_profileImage != null) {
         try {
           final storageRef = FirebaseStorage.instance.ref();
-          final userId = ref.read(authStateNotifierProvider).whenData(
-                (user) => user?.uid ?? 'unknown',
-              );
-          
           final imageRef = storageRef.child('profile_images/$userId.jpg');
           await imageRef.putFile(_profileImage!);
           profileImageUrl = await imageRef.getDownloadURL();
         } catch (e) {
-          _showSnackBar('Şəkil yüklənərkən xəta: ${e.toString()}');
+          _showSnackBar('Profil şəkli yüklənərkən xəta: ${e.toString()}');
         }
       }
 
+      // Upload ID verification image if carrier
+      if (_idVerificationImage != null) {
+        try {
+          final storageRef = FirebaseStorage.instance.ref();
+          final imageRef = storageRef.child('id_verification/$userId.jpg');
+          await imageRef.putFile(_idVerificationImage!);
+          idVerificationUrl = await imageRef.getDownloadURL();
+        } catch (e) {
+          _showSnackBar('Şəxsiyyət vəsiqə şəkli yüklənərkən xəta: ${e.toString()}');
+        }
+      }
+
+      // Get phone number from auth
+      final authState = ref.read(authStateNotifierProvider);
+      final currentUser = authState.value;
+      
       // Save user profile to Firestore
       final userData = {
         'fullName': fullName,
         'email': email,
         'bio': bio,
-        'accountType': widget.accountType,
+        'phoneNumber': currentUser?.phoneNumber ?? '',
+        'role': widget.accountType == 'carrier' ? 'carrier' : 'sender',
         'isVerified': false,
         'rating': 0.0,
         'totalRatings': 0,
+        'createdAt': FieldValue.serverTimestamp(),
       };
 
       if (profileImageUrl != null) {
         userData['profileImageUrl'] = profileImageUrl;
+      }
+
+      if (idVerificationUrl != null) {
+        userData['idVerificationUrl'] = idVerificationUrl;
+        userData['idVerificationStatus'] = 'pending';
       }
 
       // Use ref to call the save provider
@@ -202,28 +250,56 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
             ),
             const SizedBox(height: 32),
 
-            // Account Type Specific Info
-            if (!isSender)
+            // ID Verification for Carriers
+            if (widget.accountType != 'sender')
               Column(
                 children: [
+                  Text(
+                    'Şəxsiyyət Vəsiqə Yoxlaması',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 16),
                   Card(
+                    color: Theme.of(context).primaryColor.withOpacity(0.1),
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Kuryər Məlumatları',
-                            style: Theme.of(context).textTheme.titleMedium,
+                          Icon(
+                            _idVerificationImage != null
+                                ? Icons.check_circle
+                                : Icons.document_scanner,
+                            size: 48,
+                            color: _idVerificationImage != null
+                                ? Colors.green
+                                : Theme.of(context).primaryColor,
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            'Sonrakı adımda nəqliyyat məlumatlarını əlavə edəcəksiniz.',
-                            style: Theme.of(context).textTheme.bodySmall,
+                            _idVerificationImage != null
+                                ? 'Şəkil seçildi ✓'
+                                : 'Şəxsiyyət vəsiqənizin şəklini seçin',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 12),
+                          ElevatedButton.icon(
+                            onPressed: _isLoading ? null : _pickIdImage,
+                            icon: const Icon(Icons.image),
+                            label: const Text('Şəkil Seçin'),
                           ),
                         ],
                       ),
                     ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Şəxsiyyət vəsiqənizin aydın şəklini yükləyin. Bu məlumat yalnız doğrulama üçün istifadə olunacaq.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                        ),
+                    textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 32),
                 ],

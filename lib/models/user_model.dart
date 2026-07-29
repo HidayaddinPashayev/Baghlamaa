@@ -7,6 +7,8 @@ class UserModel {
   final String phoneNumber;
   final String? fullName;
   final String? profileImageUrl;
+  final String? idVerificationUrl;
+  final String? idVerificationStatus; // 'pending', 'verified', 'rejected'
   final UserRole role;
   final double? rating;
   final int? totalRatings;
@@ -20,6 +22,8 @@ class UserModel {
     required this.phoneNumber,
     this.fullName,
     this.profileImageUrl,
+    this.idVerificationUrl,
+    this.idVerificationStatus,
     required this.role,
     this.rating,
     this.totalRatings,
@@ -35,6 +39,8 @@ class UserModel {
       phoneNumber: data['phoneNumber'] as String,
       fullName: data['fullName'] as String?,
       profileImageUrl: data['profileImageUrl'] as String?,
+      idVerificationUrl: data['idVerificationUrl'] as String?,
+      idVerificationStatus: data['idVerificationStatus'] as String?,
       role: UserRole.values.firstWhere(
         (e) => e.toString() == 'UserRole.${data['role']}',
         orElse: () => UserRole.sender,
@@ -58,6 +64,8 @@ class UserModel {
       phoneNumber: data['phoneNumber'] as String? ?? '',
       fullName: data['fullName'] as String?,
       profileImageUrl: data['profileImageUrl'] as String?,
+      idVerificationUrl: data['idVerificationUrl'] as String?,
+      idVerificationStatus: data['idVerificationStatus'] as String?,
       role: UserRole.values.firstWhere(
         (e) => e.toString() == 'UserRole.${data['role']}',
         orElse: () => UserRole.sender,
@@ -77,6 +85,8 @@ class UserModel {
       'phoneNumber': phoneNumber,
       'fullName': fullName,
       'profileImageUrl': profileImageUrl,
+      'idVerificationUrl': idVerificationUrl,
+      'idVerificationStatus': idVerificationStatus,
       'role': role.toString().split('.').last,
       'rating': rating,
       'totalRatings': totalRatings,

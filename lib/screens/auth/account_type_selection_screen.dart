@@ -13,39 +13,53 @@ class AccountTypeSelectionScreen extends StatelessWidget {
       ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'Siz Kim Siniz?',
-              style: Theme.of(context).textTheme.displayMedium,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 48),
-            _AccountTypeCard(
-              icon: Icons.person_search,
-              title: 'Göndərən',
-              subtitle: 'Paket göndərmək istəyirəm',
-              onTap: () {
-                context.pushNamed(
-                  'profileSetup',
-                  extra: {'accountType': 'sender'},
-                );
-              },
-            ),
-            const SizedBox(height: 24),
-            _AccountTypeCard(
-              icon: Icons.local_shipping,
-              title: 'Kuryər',
-              subtitle: 'Paket daşımaq istəyirəm',
-              onTap: () {
-                context.pushNamed(
-                  'profileSetup',
-                  extra: {'accountType': 'carrier'},
-                );
-              },
-            ),
-          ],
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'Siz Kim Siniz?',
+                style: Theme.of(context).textTheme.displayMedium,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 48),
+              _AccountTypeCard(
+                icon: Icons.person_search,
+                title: 'Göndərən',
+                subtitle: 'Yalnız paket göndərmək istəyirəm',
+                onTap: () {
+                  context.pushNamed(
+                    'profileSetup',
+                    extra: {'accountType': 'sender'},
+                  );
+                },
+              ),
+              const SizedBox(height: 24),
+              _AccountTypeCard(
+                icon: Icons.local_shipping,
+                title: 'Kuryər',
+                subtitle: 'Yalnız paket daşımaq istəyirəm',
+                onTap: () {
+                  context.pushNamed(
+                    'profileSetup',
+                    extra: {'accountType': 'carrier'},
+                  );
+                },
+              ),
+              const SizedBox(height: 24),
+              _AccountTypeCard(
+                icon: Icons.swap_horiz,
+                title: 'Hər İkisi',
+                subtitle: 'Göndərən və Kuryər olaraq istifadə edəcəyəm',
+                onTap: () {
+                  context.pushNamed(
+                    'profileSetup',
+                    extra: {'accountType': 'both'},
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
