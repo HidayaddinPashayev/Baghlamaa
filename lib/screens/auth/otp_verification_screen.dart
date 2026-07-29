@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../providers/auth_provider.dart';
 
 class OtpVerificationScreen extends ConsumerStatefulWidget {
   final String phoneNumber;
+  final String verificationId;
 
   const OtpVerificationScreen({
     Key? key,
     required this.phoneNumber,
+    required this.verificationId,
   }) : super(key: key);
 
   @override
@@ -25,14 +29,49 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
   }
 
   void _verifyOtp() async {
-    // Implementation for Phase 2 - Auth Flow
+    final otp = _otpController.text.trim();
+
+    if (otp.isEmpty || otp.length != 6) {
+      _showSnackBar('Zəhmət olmasa 6 rəqəmli kodu daxil edin');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      await ref.read(authStateNotifierProvider.notifier).signInWithOtp(
+            widget.verificationId,
+            otp,
+          );
+
+      if (mounted) {
+        context.pushReplacementNamed('accountTypeSelection');
+      }
+    } catch (e) {
+      if (mounted) {
+        _showSnackBar('Kod yanlışdır. Zəhmət olmasa yenidən cəhd edin.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(message: Text(message)),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Yolçanta'),
+        title: const Text('OTP Doğrulaması'),
+        leading: !_isLoading
+            ? BackButton(onPressed: () => context.pop())
+            : null,
       ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -40,13 +79,13 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              'SMS Kodu Daxil Edin',
+              'SMS Kodunu Daxil Edin',
               style: Theme.of(context).textTheme.displayMedium,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
             Text(
-              '${widget.phoneNumber} nömrəsinə göndərilən kodu daxil edin',
+              '${widget.phoneNumber} nömrəsinə göndərildi',
               style: Theme.of(context).textTheme.bodyMedium,
               textAlign: TextAlign.center,
             ),
@@ -55,20 +94,27 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
               controller: _otpController,
               keyboardType: TextInputType.number,
               maxLength: 6,
+              textAlign: TextAlign.center,
+              enabled: !_isLoading,
               decoration: const InputDecoration(
                 hintText: '000000',
+                counterText: '',
               ),
+              style: Theme.of(context).textTheme.displaySmall,
             ),
             const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _isLoading ? null : _verifyOtp,
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Doğrula'),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _verifyOtp,
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Doğrula'),
+              ),
             ),
           ],
         ),

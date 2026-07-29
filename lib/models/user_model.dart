@@ -52,6 +52,25 @@ class UserModel {
     return UserModel.fromMap(doc.data() as Map<String, dynamic>);
   }
 
+  factory UserModel.fromFirestore(Map<String, dynamic> data, String uid) {
+    return UserModel(
+      uid: uid,
+      phoneNumber: data['phoneNumber'] as String? ?? '',
+      fullName: data['fullName'] as String?,
+      profileImageUrl: data['profileImageUrl'] as String?,
+      role: UserRole.values.firstWhere(
+        (e) => e.toString() == 'UserRole.${data['role']}',
+        orElse: () => UserRole.sender,
+      ),
+      rating: (data['rating'] as num?)?.toDouble(),
+      totalRatings: data['totalRatings'] as int?,
+      isVerified: data['isVerified'] as bool? ?? false,
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
+      fcmToken: data['fcmToken'] as String?,
+    );
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'uid': uid,

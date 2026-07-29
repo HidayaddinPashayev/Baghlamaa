@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'error_handler.dart';
 
 class AuthService {
   final FirebaseAuth firebaseAuth;
@@ -14,10 +15,21 @@ class AuthService {
       await firebaseAuth.verifyPhoneNumber(
         phoneNumber: phoneNumber,
         verificationCompleted: (PhoneAuthCredential credential) async {
-          await firebaseAuth.signInWithCredential(credential);
+          try {
+            await firebaseAuth.signInWithCredential(credential);
+          } catch (e) {
+            throw AppError(
+              message: 'Avtomatik doğrulama xətası',
+              originalError: e,
+            );
+          }
         },
         verificationFailed: (FirebaseAuthException e) {
-          throw Exception('Phone verification failed: ${e.message}');
+          throw AppError(
+            message: AuthErrorHandler.getUserFriendlyMessage(e),
+            code: e.code,
+            originalError: e,
+          );
         },
         codeSent: (String verificationId, int? resendToken) {
           _verificationId = verificationId;
@@ -27,6 +39,12 @@ class AuthService {
           _verificationId = verificationId;
         },
         timeout: const Duration(minutes: 2),
+      );
+    } on FirebaseAuthException catch (e) {
+      throw AppError(
+        message: AuthErrorHandler.getUserFriendlyMessage(e),
+        code: e.code,
+        originalError: e,
       );
     } catch (e) {
       rethrow;
@@ -43,8 +61,17 @@ class AuthService {
         smsCode: smsCode,
       );
       return await firebaseAuth.signInWithCredential(credential);
+    } on FirebaseAuthException catch (e) {
+      throw AppError(
+        message: AuthErrorHandler.getUserFriendlyMessage(e),
+        code: e.code,
+        originalError: e,
+      );
     } catch (e) {
-      rethrow;
+      throw AppError(
+        message: 'Giriş xətası: ${e.toString()}',
+        originalError: e,
+      );
     }
   }
 
@@ -52,7 +79,10 @@ class AuthService {
     try {
       await firebaseAuth.signOut();
     } catch (e) {
-      rethrow;
+      throw AppError(
+        message: 'Çıxış xətası: ${e.toString()}',
+        originalError: e,
+      );
     }
   }
 

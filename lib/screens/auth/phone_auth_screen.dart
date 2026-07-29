@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../providers/auth_provider.dart';
 
 class PhoneAuthScreen extends ConsumerStatefulWidget {
   const PhoneAuthScreen({Key? key}) : super(key: key);
@@ -20,7 +21,68 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
   }
 
   void _sendOtp() async {
-    // Implementation for Phase 2 - Auth Flow
+    final phoneNumber = _phoneController.text.trim();
+
+    // Validate phone number
+    if (phoneNumber.isEmpty) {
+      _showSnackBar(context, 'Zəhmət olmasa telefon nömrənizi daxil edin');
+      return;
+    }
+
+    if (!RegExp(r'^\d{9,}$').hasMatch(phoneNumber)) {
+      _showSnackBar(context, 'Keçərli telefon nömrəsi daxil edin');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final authService = ref.read(authServiceProvider);
+      final fullPhoneNumber = '+994$phoneNumber';
+
+      await authService.verifyPhoneNumber(
+        fullPhoneNumber,
+        (verificationId) {
+          if (mounted) {
+            context.pushNamed(
+              'otpVerification',
+              extra: {'phoneNumber': fullPhoneNumber, 'verificationId': verificationId},
+            );
+          }
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        final errorMessage = e.toString();
+        final userMessage = errorMessage.contains('too-many-requests')
+            ? 'Çox sayda cəhd edildi. 5 dəqiqə sonra yenidən cəhd edin'
+            : errorMessage.contains('invalid-phone-number')
+                ? 'Telefon nömrəsi keçərli deyil'
+                : errorMessage;
+        _showSnackBar(userMessage);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        _showSnackBar(context, 'Xəta: ${e.toString()}');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _showSnackBar(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(message: Text(message)),
+    );
   }
 
   @override
